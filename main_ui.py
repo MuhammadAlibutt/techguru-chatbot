@@ -90,7 +90,7 @@ if prompt := st.chat_input("tell me which technology you want to learn..."):
 
     if 'agent' not in st.session_state:
         st.error('TechGure is not initialized please refresh the page')
-        st.info()
+        st.info(f"Startup error was: {st.session_state.get('start_error', 'Unknown — check logs')}")
         st.stop()
     #show user message immediately
     with st.chat_message("user"):
