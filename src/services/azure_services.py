@@ -7,14 +7,13 @@ from azure.ai.projects.models import (
 import os
 import importlib.util
 from azure.identity import DefaultAzureCredential
-from src.conn.config import(
-    AZURE_ENDPOINT,
-    AGENT_NAME,
-    BEING_CONNECTION_NAME,
-    MODEL_DEPLOYMENT_NAME,
-    SYSTEM_PROMPT
-)
-import streamlit as st
+# from src.conn.config import(
+#     AZURE_ENDPOINT,
+#     AGENT_NAME,
+#     BEING_CONNECTION_NAME,
+#     MODEL_DEPLOYMENT_NAME,
+#     SYSTEM_PROMPT
+# )
 
 # ── Step 1: Find and load paths.py ────────────
 current_file = os.path.abspath(__file__)       # .../src/services/azure_services.py

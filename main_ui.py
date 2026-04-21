@@ -1,11 +1,33 @@
 import streamlit as st
 import os 
 import sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from src.services.azure_services import TechAgent
 
 
+#from src.services.azure_services import TechAgent
+import importlib.util
+# ── Fix import path before anything else ──────
+# WHY at the very top before other imports?
+# Python resolves imports in order.
+# We must fix the path BEFORE importing TechAgent.
+
+current_file = os.path.abspath(__file__)
+root_dir     = os.path.dirname(current_file)      # techguru-chatbot/
+src_dir      = os.path.join(root_dir, 'src')      # techguru-chatbot/src/
+paths_file   = os.path.join(src_dir, 'paths.py')  # techguru-chatbot/src/paths.py
+
+# Load paths.py
+spec  = importlib.util.spec_from_file_location("paths", paths_file)
+paths = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(paths)
+
+# Load azure_services.py directly
+services_file = os.path.join(src_dir, 'services', 'azure_services.py')
+spec2         = importlib.util.spec_from_file_location("azure_services", services_file)
+azure_mod     = importlib.util.module_from_spec(spec2)
+spec2.loader.exec_module(azure_mod)
+
+# Get TechAgent from loaded module
+TechAgent = azure_mod.TechAgent
 # page setup
 st.set_page_config(
     page_title="Your Tech Tutor",
