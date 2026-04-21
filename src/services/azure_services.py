@@ -1,25 +1,49 @@
 from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import (
-    PromptAgentDefinition,
     BingGroundingTool,
     BingGroundingSearchToolParameters,
     BingGroundingSearchConfiguration
 )
-import sys
 import os
+import importlib.util
 from azure.identity import DefaultAzureCredential
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from src.conn.config import(
     AZURE_ENDPOINT,
     AGENT_NAME,
-    AZURE_API_KEY,
     BEING_CONNECTION_NAME,
     MODEL_DEPLOYMENT_NAME,
     SYSTEM_PROMPT
 )
 import streamlit as st
 
+# ── Step 1: Find and load paths.py ────────────
+current_file = os.path.abspath(__file__)       # .../src/services/azure_services.py
+services_dir = os.path.dirname(current_file)   # .../src/services/
+src_dir      = os.path.dirname(services_dir)   # .../src/
+paths_file   = os.path.join(src_dir, 'paths.py')
 
+# Load paths.py directly
+spec   = importlib.util.spec_from_file_location("paths", paths_file)
+paths  = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(paths)
+
+# ── Step 2: Load config.py using path from paths.py ──
+spec2   = importlib.util.spec_from_file_location("config", paths.CONFIG_PATH)
+config  = importlib.util.module_from_spec(spec2)
+spec2.loader.exec_module(config)
+
+# ── Step 3: Extract all values ─────────────────
+AZURE_ENDPOINT        = config.AZURE_ENDPOINT
+MODEL_DEPLOYMENT_NAME = config.MODEL_DEPLOYMENT_NAME
+BING_CONNECTION_NAME  = config.BING_CONNECTION_NAME
+AGENT_NAME            = config.AGENT_NAME
+SYSTEM_PROMPT         = config.SYSTEM_PROMPT
+
+
+print(f"✅ Services config loaded!")
+print(f"   Endpoint : {AZURE_ENDPOINT[:40]}...")
+print(f"   Model    : {MODEL_DEPLOYMENT_NAME}")
+print(f"   Agent    : {AGENT_NAME}")
 
 class TechAgent:
 
