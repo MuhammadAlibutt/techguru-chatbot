@@ -146,8 +146,11 @@ from azure.ai.projects.models import (
     BingGroundingSearchToolParameters,
     BingGroundingSearchConfiguration
 )
+import sys
+import os
 from azure.identity import DefaultAzureCredential
-from ..conn.config import(
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from src.conn.config import(
     AZURE_ENDPOINT,
     AGENT_NAME,
     AZURE_API_KEY,
