@@ -60,7 +60,7 @@ class TechAgent:
         #Getting Being Connection ID
 
         bing_conn = self.client.connections.get(
-            name = BEING_CONNECTION_NAME
+            name = BING_CONNECTION_NAME
         )
 
         # now retriving the connection id 
