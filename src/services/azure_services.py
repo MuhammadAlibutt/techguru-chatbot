@@ -44,10 +44,10 @@ class TechAgent:
         BING_CONNECTION_NAME  = config.BING_CONNECTION_NAME
         AGENT_NAME            = config.AGENT_NAME
         SYSTEM_PROMPT         = config.SYSTEM_PROMPT
-        AZURE_API_KEY         = config.AZURE_API_KEY
+        AZURE_API_KEY         = os.environ.get("AZURE_API_KEY") or config.AZURE_API_KEY
         api_key = AZURE_API_KEY
         is_cloud = os.environ.get("HOME") == "/home/adminuser"
-        
+
         def get_credential():
             if is_cloud and AZURE_API_KEY:
                 print("🔐 Using AzureKeyCredential")
