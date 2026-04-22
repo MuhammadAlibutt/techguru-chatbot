@@ -10,7 +10,12 @@ def get_config(key:str)->str:
     try:
         return st.secrets[key]
     except Exception:
-        return os.getenv(key)
+        pass
+
+    value = os.environ.get(key)
+    if value:
+        return value
+    return os.getenv(key=key)
     
 AZURE_ENDPOINT        = get_config("AZURE_ENDPOINT")
 MODEL_DEPLOYMENT_NAME = get_config("MODEL_DEPLOYMENT_NAME")
