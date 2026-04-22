@@ -1,13 +1,27 @@
+# At top of file — outside class
 from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import (
     BingGroundingTool,
     BingGroundingSearchToolParameters,
     BingGroundingSearchConfiguration
 )
+from azure.core.credentials import AccessToken, AccessTokenInfo
+from azure.identity import DefaultAzureCredential
 import os
 import importlib.util
-from azure.identity import DefaultAzureCredential
-from azure.core.credentials import AzureKeyCredential
+import time
+
+# ── API Key Credential Wrapper ────────────────
+class ApiKeyCredential:
+    def __init__(self, key: str):
+        self.key = key
+
+    def get_token(self, *scopes, **kwargs):
+        return AccessToken(self.key, int(time.time()) + 3600)
+
+    def get_token_info(self, *scopes, **kwargs):
+        return AccessTokenInfo(self.key, int(time.time()) + 3600)
+
 
 # ── Load paths.py ─────────────────────────────
 current_file = os.path.abspath(__file__)
@@ -25,34 +39,10 @@ config = importlib.util.module_from_spec(spec2)
 spec2.loader.exec_module(config)
 
 
-class ApiKeyCredential:
-    """
-    WHY both get_token AND get_token_info?
-    Older SDK versions call get_token()
-    Newer SDK versions call get_token_info()
-    We implement BOTH so it works regardless of version.
-    """
-    def __init__(self, key: str):
-        self.key = key
-
-    def get_token(self, *scopes, **kwargs):
-        from azure.core.credentials import AccessToken
-        import time
-        return AccessToken(self.key, int(time.time()) + 3600)
-
-    def get_token_info(self, *scopes, **kwargs):
-        from azure.core.credentials import AccessTokenInfo
-        import time
-        return AccessTokenInfo(self.key, int(time.time()) + 3600)
-
 class TechAgent:
 
     def __init__(self):
-        # ── Read values — os.environ first then config ──
-        # WHY os.environ first?
-        # main_ui.py injects st.secrets into os.environ
-        # BEFORE calling TechAgent()
-        # So os.environ has the real cloud values
+        # Read values fresh — os.environ first then config
         self.AZURE_ENDPOINT        = os.environ.get("AZURE_ENDPOINT")        or config.AZURE_ENDPOINT
         self.MODEL_DEPLOYMENT_NAME = os.environ.get("MODEL_DEPLOYMENT_NAME") or config.MODEL_DEPLOYMENT_NAME
         self.BING_CONNECTION_NAME  = os.environ.get("BING_CONNECTION_NAME")  or config.BING_CONNECTION_NAME
@@ -60,22 +50,15 @@ class TechAgent:
         self.AGENT_NAME            = config.AGENT_NAME
         self.SYSTEM_PROMPT         = config.SYSTEM_PROMPT
 
-        # WHY store on self?
-        # Makes them available to chat() and clean() methods
-        # Local variables in __init__ are invisible to other methods
-
         is_cloud = os.environ.get("HOME") == "/home/adminuser"
 
         print(f"Environment : {'Cloud' if is_cloud else 'Local'}")
         print(f"API Key     : {bool(self.AZURE_API_KEY)}")
-        print(f"Endpoint    : {bool(self.AZURE_ENDPOINT)}")
 
         # ── Credential ────────────────────────
-        # WHY check API key regardless of is_cloud?
-        # If API key exists use it — works both locally and cloud
         if self.AZURE_API_KEY:
-            credential = AzureKeyCredential(self.AZURE_API_KEY)
-            print("Using AzureKeyCredential")
+            credential = ApiKeyCredential(self.AZURE_API_KEY)
+            print("Using ApiKeyCredential")
         else:
             credential = DefaultAzureCredential()
             print("Using DefaultAzureCredential")
@@ -100,17 +83,19 @@ class TechAgent:
                 ]
             )
         )
-        print("Bing tool ready!")
+        print("Bing ready!")
 
         # ── Agent ─────────────────────────────
         if is_cloud:
-            print("Cloud: Getting existing TechGuru...")
+            print("Cloud: Getting TechGuru...")
             self.agent = self.client.agents.get(agent_name=self.AGENT_NAME)
-            print(f"Agent found: {self.agent.name}")
+            print(f"Agent: {self.agent.name}")
         else:
             print("Local: Recreating agent...")
             try:
-                versions = list(self.client.agents.list_versions(agent_name=self.AGENT_NAME))
+                versions = list(self.client.agents.list_versions(
+                    agent_name=self.AGENT_NAME
+                ))
                 for v in versions:
                     self.client.agents.delete_version(
                         agent_name=self.AGENT_NAME,
@@ -134,7 +119,7 @@ class TechAgent:
         # ── Conversation ──────────────────────
         self.openai_client = self.client.get_openai_client()
         self.conversation  = self.openai_client.conversations.create(items=[])
-        print(f"Ready! Conv: {self.conversation.id[:20]}...")
+        print(f"Ready!")
 
 
     def chat(self, user_message: str) -> str:
@@ -147,18 +132,16 @@ class TechAgent:
                     "content": user_message
                 }]
             )
-
             response = self.openai_client.responses.create(
                 conversation=self.conversation.id,
                 extra_body={
                     "agent_reference": {
-                        "name": self.AGENT_NAME,   # ← self.AGENT_NAME now!
+                        "name": self.AGENT_NAME,
                         "type": "agent_reference"
                     }
                 }
             )
             return response.output_text
-
         except Exception as e:
             import traceback
             return f"Error: {traceback.format_exc()}"
@@ -169,11 +152,6 @@ class TechAgent:
             self.openai_client.conversations.delete(
                 conversation_id=self.conversation.id
             )
-            if os.environ.get("HOME") != "/home/adminuser":
-                self.client.agents.delete_version(
-                    agent_name=self.agent.name,
-                    agent_version=self.agent.version
-                )
-            print("Cleaned up!")
+            print("Cleaned!")
         except Exception as e:
             print(f"Cleanup: {e}")
