@@ -42,24 +42,34 @@ st.title('Your Tech Buddy')
 st.caption("Place to learn everything")
 st.divider()
 
+if "initialized" not in st.session_state:
+    st.session_state.initialized = False
+if "start_error" not in st.session_state:
+    st.session_state.start_error = None
 
-
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 #Session State
 
 if "agent" not in st.session_state:
-    st.error("Agent not initialized!")
-    st.code(str(st.session_state.get("start_error", "No error captured — agent never initialized")))
-    st.stop()
     with st.spinner("Running the agent, Please wait......"):
         try:
             st.session_state.agent = TechAgent()
             st.session_state.start_error = None
         except Exception as e:
-            print(f"Some Error Occured: {e}")
+            import traceback
+            st.session_state.start_error = traceback.format_exc()
+            print(f"Some Error Occured: {st.session_state.start_error}")
 
+if st.session_state.get("start_error"):
+    st.error("TechGuru failed to start — real error below:")
+    st.code(st.session_state.start_error)
+    st.stop()
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if "agent" not in st.session_state:
+    st.error("Agent still not initialized!")
+    st.code("Agent creation silently failed — check Azure credentials in secrets")
+    st.stop()
 
 
 
