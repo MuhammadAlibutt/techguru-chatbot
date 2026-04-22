@@ -86,35 +86,38 @@ class TechAgent:
         print("Bing ready!")
 
         # ── Agent ─────────────────────────────
-        if is_cloud:
-            print("Cloud: Getting TechGuru...")
-            self.agent = self.client.agents.get(agent_name=self.AGENT_NAME)
-            print(f"Agent: {self.agent.name}")
-        else:
-            print("Local: Recreating agent...")
-            try:
-                versions = list(self.client.agents.list_versions(
-                    agent_name=self.AGENT_NAME
-                ))
-                for v in versions:
-                    self.client.agents.delete_version(
-                        agent_name=self.AGENT_NAME,
-                        agent_version=v.version
-                    )
-                    print(f"Deleted v{v.version}")
-            except Exception:
-                print("No existing versions")
+        print("Cloud: Getting TechGuru...")
+        self.agent = self.client.agents.get(agent_name=self.AGENT_NAME)
+        print(f"Agent: {self.agent.name}")
+        # if is_cloud:
+        #     print("Cloud: Getting TechGuru...")
+        #     self.agent = self.client.agents.get(agent_name=self.AGENT_NAME)
+        #     print(f"Agent: {self.agent.name}")
+        # else:
+        #     print("Local: Recreating agent...")
+        #     try:
+        #         versions = list(self.client.agents.list_versions(
+        #             agent_name=self.AGENT_NAME
+        #         ))
+        #         for v in versions:
+        #             self.client.agents.delete_version(
+        #                 agent_name=self.AGENT_NAME,
+        #                 agent_version=v.version
+        #             )
+        #             print(f"Deleted v{v.version}")
+        #     except Exception:
+        #         print("No existing versions")
 
-            self.agent = self.client.agents.create_version(
-                agent_name=self.AGENT_NAME,
-                definition={
-                    "kind": "prompt",
-                    "model": self.MODEL_DEPLOYMENT_NAME,
-                    "instructions": self.SYSTEM_PROMPT,
-                    "tools": [bing_tool]
-                }
-            )
-            print(f"Agent created: {self.agent.name}")
+        #     self.agent = self.client.agents.create_version(
+        #         agent_name=self.AGENT_NAME,
+        #         definition={
+        #             "kind": "prompt",
+        #             "model": self.MODEL_DEPLOYMENT_NAME,
+        #             "instructions": self.SYSTEM_PROMPT,
+        #             "tools": [bing_tool]
+        #         }
+        #     )
+        print(f"Agent created: {self.agent.name}")
 
         # ── Conversation ──────────────────────
         self.openai_client = self.client.get_openai_client()
