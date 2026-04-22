@@ -25,6 +25,26 @@ config = importlib.util.module_from_spec(spec2)
 spec2.loader.exec_module(config)
 
 
+class ApiKeyCredential:
+    """
+    WHY both get_token AND get_token_info?
+    Older SDK versions call get_token()
+    Newer SDK versions call get_token_info()
+    We implement BOTH so it works regardless of version.
+    """
+    def __init__(self, key: str):
+        self.key = key
+
+    def get_token(self, *scopes, **kwargs):
+        from azure.core.credentials import AccessToken
+        import time
+        return AccessToken(self.key, int(time.time()) + 3600)
+
+    def get_token_info(self, *scopes, **kwargs):
+        from azure.core.credentials import AccessTokenInfo
+        import time
+        return AccessTokenInfo(self.key, int(time.time()) + 3600)
+
 class TechAgent:
 
     def __init__(self):
