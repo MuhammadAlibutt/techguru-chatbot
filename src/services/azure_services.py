@@ -166,16 +166,13 @@ class TechAgent:
                 "role": "user",
                 "content": user_message
             })
+            messages = [
+                {"role": "system" , "content":self.SYSTEM_PROMPT}
+            ] + self._history
 
             response = self.openai_client.responses.create(
                 model=self.MODEL_DEPLOYMENT_NAME,
-                input=self._history,
-                extra_body={
-                    "agent_reference": {
-                        "name": self.AGENT_NAME,
-                        "type": "agent_reference"
-                    }
-                }
+                input=messages
             )
 
             reply = response.output_text
