@@ -3,14 +3,14 @@ import streamlit as st
 import os
 import importlib.util
 
-# ── Page setup FIRST ──────────────────────────
+# ── Page setup ────────────────────────────────
 st.set_page_config(
     page_title="Your Tech Tutor",
     page_icon="🤖",
     layout="centered"
 )
 
-st.title('Your Tech Buddy')
+st.title("Your Tech Buddy")
 st.caption("Place to learn everything")
 st.divider()
 
@@ -24,44 +24,45 @@ if "messages" not in st.session_state:
 if "agent" not in st.session_state:
     with st.spinner("Starting TechGuru..."):
         try:
-            # ── Step 1: Inject secrets FIRST ──
-            # WHY before loading module?
-            # azure_services.py reads os.environ when it loads
-            # If we inject AFTER loading, values are already None
-            print("Injecting secrets...")
+            # ── Step 1: Inject secrets FIRST ──────
+            # WHY inject before loading module?
+            # azure_services.py reads os.environ when it loads.
+            # Secrets must be in os.environ BEFORE that happens.
+            # st.secrets only works here in Streamlit context.
+            print("Injecting secrets into os.environ...")
             for key in ["AZURE_ENDPOINT", "MODEL_DEPLOYMENT_NAME",
-                       "BING_CONNECTION_NAME", "AZURE_API_KEY"]:
+                        "BING_CONNECTION_NAME", "AZURE_API_KEY"]:
                 try:
                     value = st.secrets[key]
                     os.environ[key] = value
-                    print(f"✅ {key} injected")
+                    print(f"✅ Injected: {key}")
                 except Exception:
-                    print(f"⚠️ {key} not found in secrets")
+                    print(f"⚠️ Not in secrets: {key}")
 
             # ── Step 2: Load module AFTER secrets injected ──
             current_file  = os.path.abspath(__file__)
             root_dir      = os.path.dirname(current_file)
             src_dir       = os.path.join(root_dir, 'src')
-            paths_file    = os.path.join(src_dir, 'paths.py')
 
-            spec  = importlib.util.spec_from_file_location("paths", paths_file)
-            paths = importlib.util.module_from_spec(spec)
+            paths_file    = os.path.join(src_dir, 'paths.py')
+            spec          = importlib.util.spec_from_file_location("paths", paths_file)
+            paths         = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(paths)
 
             services_file = os.path.join(src_dir, 'services', 'azure_services.py')
             spec2         = importlib.util.spec_from_file_location("azure_services", services_file)
             azure_mod     = importlib.util.module_from_spec(spec2)
-            spec2.loader.exec_module(azure_mod)  # ← NOW secrets are in os.environ
+            spec2.loader.exec_module(azure_mod)
             TechAgent     = azure_mod.TechAgent
 
-            # ── Step 3: Create agent ──────────
+            # ── Step 3: Create agent ──────────────
             st.session_state.agent       = TechAgent()
             st.session_state.start_error = None
             print("✅ TechAgent ready!")
 
         except Exception as e:
             st.session_state.start_error = traceback.format_exc()
-            print(f"❌ Error: {st.session_state.start_error}")
+            print(f"❌ Failed: {st.session_state.start_error}")
 
 # ── Show error ────────────────────────────────
 if st.session_state.get("start_error"):
@@ -80,7 +81,9 @@ if len(st.session_state.messages) == 0:
 👋 **Welcome! I'm TechGuru — your personal tech expert.**
 
 🎓 **Teach you any technology** — say *"I want to learn Python"*
+
 🤝 **Help when stuck** — say *"I don't understand decorators"*
+
 📰 **Live tech news** — say *"Latest news on AI"*
 
 > I only talk about **technology and development**!

@@ -20,6 +20,9 @@ spec2.loader.exec_module(config)
 class TechAgent:
 
     def __init__(self):
+        # ── Read all values ───────────────────
+        # os.environ first → catches Streamlit secrets injected by main_ui.py
+        # config fallback  → catches local .env values
         self.AZURE_ENDPOINT        = os.environ.get("AZURE_ENDPOINT")        or config.AZURE_ENDPOINT
         self.MODEL_DEPLOYMENT_NAME = os.environ.get("MODEL_DEPLOYMENT_NAME") or config.MODEL_DEPLOYMENT_NAME
         self.BING_CONNECTION_NAME  = os.environ.get("BING_CONNECTION_NAME")  or config.BING_CONNECTION_NAME
@@ -27,53 +30,59 @@ class TechAgent:
         self.AGENT_NAME            = config.AGENT_NAME
         self.SYSTEM_PROMPT         = config.SYSTEM_PROMPT
 
-        # WHY check HOME?
-        # Streamlit Cloud always runs as /home/adminuser
-        # Local Windows machine never has this path
-        self.is_cloud = os.environ.get("HOME") == "/home/adminuser"
-
-        print(f"Mode      : {'Cloud' if self.is_cloud else 'Local'}")
         print(f"API Key   : {bool(self.AZURE_API_KEY)}")
+        print(f"Endpoint  : {bool(self.AZURE_ENDPOINT)}")
+        print(f"Agent     : {self.AGENT_NAME}")
 
-        if self.is_cloud:
+        # WHY API key to decide mode?
+        # Local  → no API key in .env → DefaultAzureCredential + az login
+        # Cloud  → API key in secrets → OpenAI SDK with api-key header
+        # Removing API key from .env makes this reliable everywhere
+        if self.AZURE_API_KEY:
+            print("Mode: Cloud → OpenAI SDK with API key")
+            self.is_cloud = True
             self._setup_cloud()
         else:
+            print("Mode: Local → AIProjectClient with az login")
+            self.is_cloud = False
             self._setup_local()
 
 
     def _setup_cloud(self):
         """
-        WHY OpenAI SDK on cloud?
-        AIProjectClient ONLY supports Entra ID — no API key.
-        But the /openai/v1 endpoint DOES support API key.
-        We use OpenAI SDK pointed at Azure endpoint with API key.
-        TechGuru agent already exists — we reference it by name.
-        No need to create/manage agents at all on cloud.
+        WHY OpenAI SDK not AIProjectClient on cloud?
+        Official docs confirm: AIProjectClient ONLY supports Entra ID.
+        API key ONLY works on /openai/v1 endpoint.
+        We use OpenAI SDK pointed at Azure /openai/v1 endpoint.
+        TechGuru agent already exists — we just reference it by name.
         """
         from openai import OpenAI
 
-        # WHY this endpoint format?
-        # Azure OpenAI v1 endpoint accepts api-key authentication
-        # This is different from the projects endpoint
-        base_url = self.AZURE_ENDPOINT.replace(
-            "/api/projects/ai-tutor-agent",
-            "/openai/v1"
-        )
+        # WHY replace endpoint?
+        # Our AZURE_ENDPOINT is the projects endpoint:
+        # https://resource.services.ai.azure.com/api/projects/project-name
+        # OpenAI SDK needs the /openai/v1 endpoint:
+        # https://resource.services.ai.azure.com/openai/v1
+        base_url = self.AZURE_ENDPOINT.split("/api/projects/")[0] + "/openai/v1"
 
         self.openai_client = OpenAI(
             api_key=self.AZURE_API_KEY,
             base_url=base_url
         )
 
+        # Conversation history stored in memory
+        # WHY list? OpenAI Responses API accepts
+        # full message history as input array
         self._history = []
-        print(f"✅ Cloud ready! Endpoint: {base_url}")
+        print(f"✅ Cloud ready! Base URL: {base_url}")
 
 
     def _setup_local(self):
         """
         WHY AIProjectClient locally?
-        Local machine has az login — Entra ID works.
-        Full SDK gives us agent management + Bing search.
+        Local machine has az login session.
+        DefaultAzureCredential uses it automatically.
+        Full SDK gives us agent management + Bing tool.
         """
         from azure.ai.projects import AIProjectClient
         from azure.ai.projects.models import (
@@ -88,8 +97,12 @@ class TechAgent:
         )
         print("✅ Local connected!")
 
-        bing_conn = self.client.connections.get(name=self.BING_CONNECTION_NAME)
-        bing_id   = bing_conn._data['id']
+        # Get Bing connection
+        bing_conn = self.client.connections.get(
+            name=self.BING_CONNECTION_NAME
+        )
+        bing_id = bing_conn._data['id']
+        print("✅ Bing connection found!")
 
         bing_tool = BingGroundingTool(
             bing_grounding=BingGroundingSearchToolParameters(
@@ -101,6 +114,9 @@ class TechAgent:
             )
         )
 
+        # Delete old versions and create fresh
+        # WHY recreate locally?
+        # Ensures latest SYSTEM_PROMPT is always used
         try:
             versions = list(self.client.agents.list_versions(
                 agent_name=self.AGENT_NAME
@@ -110,8 +126,9 @@ class TechAgent:
                     agent_name=self.AGENT_NAME,
                     agent_version=v.version
                 )
+                print(f"   Deleted v{v.version}")
         except Exception:
-            pass
+            print("   No existing versions found")
 
         self.agent = self.client.agents.create_version(
             agent_name=self.AGENT_NAME,
@@ -122,9 +139,12 @@ class TechAgent:
                 "tools": [bing_tool]
             }
         )
+        print(f"✅ Agent created: {self.agent.name}")
 
         self.openai_client = self.client.get_openai_client()
-        self.conversation   = self.openai_client.conversations.create(items=[])
+        self.conversation   = self.openai_client.conversations.create(
+            items=[]
+        )
         print(f"✅ Local ready!")
 
 
@@ -137,8 +157,9 @@ class TechAgent:
     def _chat_cloud(self, user_message: str) -> str:
         """
         WHY input array with history?
-        OpenAI Responses API accepts conversation history
-        as an array of messages — this gives us memory.
+        OpenAI Responses API accepts full message history.
+        This gives conversation memory without needing
+        a conversation ID or thread.
         """
         try:
             self._history.append({
@@ -158,15 +179,19 @@ class TechAgent:
             )
 
             reply = response.output_text
+
             self._history.append({
                 "role": "assistant",
                 "content": reply
             })
+
             return reply
 
         except Exception as e:
             import traceback
-            return f"Error: {traceback.format_exc()}"
+            error = traceback.format_exc()
+            print(f"Cloud chat error: {error}")
+            return f"Error: {error}"
 
 
     def _chat_local(self, user_message: str) -> str:
@@ -204,4 +229,4 @@ class TechAgent:
                 )
             print("✅ Cleaned!")
         except Exception as e:
-            print(f"Cleanup: {e}")
+            print(f"Cleanup note: {e}")
