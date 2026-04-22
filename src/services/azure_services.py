@@ -40,6 +40,13 @@ AGENT_NAME            = config.AGENT_NAME
 SYSTEM_PROMPT         = config.SYSTEM_PROMPT
 AZURE_API_KEY         = config.AZURE_API_KEY
 
+
+# Print ALL environment variables that contain "AZURE"
+print("=== CHECKING ALL AZURE ENV VARS ===")
+for key, value in os.environ.items():
+    if "AZURE" in key or "MODEL" in key or "BING" in key:
+        print(f"  {key} = {value[:10]}..." if value else f"  {key} = EMPTY")
+print("=== END CHECK ===")
 api_key = AZURE_API_KEY
 is_cloud = os.environ.get("HOME") == "/home/adminuser"
 def get_credential():
