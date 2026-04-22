@@ -1,3 +1,5 @@
+import traceback
+
 import streamlit as st
 import os 
 import sys
@@ -52,14 +54,29 @@ if "messages" not in st.session_state:
 #Session State
 
 if "agent" not in st.session_state:
-    with st.spinner("Running the agent, Please wait......"):
+    with st.spinner("Starting TechGuru..."):
         try:
-            st.session_state.agent = TechAgent()
+            # WHY inject secrets here?
+            # st.secrets works HERE in main_ui.py
+            # because we ARE in Streamlit context.
+            # We set them as environment variables
+            # so azure_services.py can read via os.environ
+            for key in ["AZURE_ENDPOINT", "MODEL_DEPLOYMENT_NAME",
+                       "BING_CONNECTION_NAME", "AZURE_API_KEY"]:
+                try:
+                    value = st.secrets[key]
+                    os.environ[key] = value
+                    print(f"✅ Injected secret: {key}")
+                except Exception:
+                    print(f"⚠️ Secret not found: {key}")
+
+            st.session_state.agent       = TechAgent()
             st.session_state.start_error = None
+            print("✅ TechAgent initialized!")
+
         except Exception as e:
-            import traceback
             st.session_state.start_error = traceback.format_exc()
-            print(f"Some Error Occured: {st.session_state.start_error}")
+            print(f"❌ Failed: {st.session_state.start_error}")
 
 if st.session_state.get("start_error"):
     st.error("TechGuru failed to start — real error below:")
