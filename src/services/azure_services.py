@@ -33,28 +33,27 @@ config  = importlib.util.module_from_spec(spec2)
 spec2.loader.exec_module(config)
 
 # ── Step 3: Extract all values ─────────────────
-AZURE_ENDPOINT        = config.AZURE_ENDPOINT
-MODEL_DEPLOYMENT_NAME = config.MODEL_DEPLOYMENT_NAME
-BING_CONNECTION_NAME  = config.BING_CONNECTION_NAME
-AGENT_NAME            = config.AGENT_NAME
-SYSTEM_PROMPT         = config.SYSTEM_PROMPT
-AZURE_API_KEY         = config.AZURE_API_KEY
 
-
-
-api_key = AZURE_API_KEY
-is_cloud = os.environ.get("HOME") == "/home/adminuser"
-def get_credential():
-    if is_cloud and AZURE_API_KEY:
-        print("🔐 Using AzureKeyCredential")
-        return AzureKeyCredential(AZURE_API_KEY)
-    print("🔐 Using DefaultAzureCredential")
-    return DefaultAzureCredential()
 
 class TechAgent:
 
 
     def __init__(self):
+        AZURE_ENDPOINT        = config.AZURE_ENDPOINT
+        MODEL_DEPLOYMENT_NAME = config.MODEL_DEPLOYMENT_NAME
+        BING_CONNECTION_NAME  = config.BING_CONNECTION_NAME
+        AGENT_NAME            = config.AGENT_NAME
+        SYSTEM_PROMPT         = config.SYSTEM_PROMPT
+        AZURE_API_KEY         = config.AZURE_API_KEY
+        api_key = AZURE_API_KEY
+        is_cloud = os.environ.get("HOME") == "/home/adminuser"
+        
+        def get_credential():
+            if is_cloud and AZURE_API_KEY:
+                print("🔐 Using AzureKeyCredential")
+                return AzureKeyCredential(AZURE_API_KEY)
+            print("🔐 Using DefaultAzureCredential")
+            return DefaultAzureCredential()
         
         if is_cloud:
             self.client = AIProjectClient(
