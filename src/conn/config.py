@@ -15,6 +15,7 @@ def get_config(key:str)->str:
 AZURE_ENDPOINT        = get_config("AZURE_ENDPOINT")
 MODEL_DEPLOYMENT_NAME = get_config("MODEL_DEPLOYMENT_NAME")
 BING_CONNECTION_NAME  = get_config("BING_CONNECTION_NAME")
+AZURE_API_KEY = get_config('AZURE_API_KEY')
 
 # AZURE_ENDPOINT =os.getenv('AZURE_ENDPOINT')
 

@@ -7,6 +7,7 @@ from azure.ai.projects.models import (
 import os
 import importlib.util
 from azure.identity import DefaultAzureCredential
+from azure.core.credentials import AzureKeyCredential
 # from src.conn.config import(
 #     AZURE_ENDPOINT,
 #     AGENT_NAME,
@@ -37,12 +38,21 @@ MODEL_DEPLOYMENT_NAME = config.MODEL_DEPLOYMENT_NAME
 BING_CONNECTION_NAME  = config.BING_CONNECTION_NAME
 AGENT_NAME            = config.AGENT_NAME
 SYSTEM_PROMPT         = config.SYSTEM_PROMPT
+AZURE_API_KEY         = config.AZURE_API_KEY
 
+api_key = AZURE_API_KEY
+
+def get_credential(api_key):
+    if api_key:
+        return AzureKeyCredential(api_key)
+    else:
+        return DefaultAzureCredential()
 
 print(f"✅ Services config loaded!")
 print(f"   Endpoint : {AZURE_ENDPOINT[:40]}...")
 print(f"   Model    : {MODEL_DEPLOYMENT_NAME}")
 print(f"   Agent    : {AGENT_NAME}")
+print(f"   API_KEY    : {AZURE_API_KEY}")
 
 class TechAgent:
 
@@ -51,7 +61,7 @@ class TechAgent:
         
         self.client = AIProjectClient(
             endpoint=AZURE_ENDPOINT,
-            credential=DefaultAzureCredential()
+            credential=get_credential(api_key=api_key)
         )
         print("Connecting to Azure2")
 
