@@ -20,6 +20,8 @@ if "start_error" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+
+
 # ── Initialize agent ──────────────────────────
 if "agent" not in st.session_state:
     with st.spinner("Starting TechGuru..."):
@@ -29,7 +31,6 @@ if "agent" not in st.session_state:
             # azure_services.py reads os.environ when it loads.
             # Secrets must be in os.environ BEFORE that happens.
             # st.secrets only works here in Streamlit context.
-            print("Injecting secrets into os.environ...")
             for key in ["AZURE_ENDPOINT", "MODEL_DEPLOYMENT_NAME",
                         "BING_CONNECTION_NAME", "AZURE_API_KEY"]:
                 try:
@@ -56,7 +57,7 @@ if "agent" not in st.session_state:
             TechAgent     = azure_mod.TechAgent
 
             # ── Step 3: Create agent ──────────────
-            st.session_state.agent       = TechAgent()
+            st.session_state.agent = TechAgent()
             st.session_state.start_error = None
             print("✅ TechAgent ready!")
 

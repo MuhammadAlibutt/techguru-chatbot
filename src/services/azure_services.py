@@ -1,17 +1,27 @@
 import os
 import importlib.util
+from openai import OpenAI
 from azure.identity import DefaultAzureCredential
+from azure.ai.projects import AIProjectClient
+from azure.ai.projects.models import (
+            BingGroundingTool,
+            BingGroundingSearchToolParameters,
+            BingGroundingSearchConfiguration
+        )
 
 # ── Load paths.py ─────────────────────────────
+# just getting the path to path.py
 current_file = os.path.abspath(__file__)
 services_dir = os.path.dirname(current_file)
 src_dir      = os.path.dirname(services_dir)
 paths_file   = os.path.join(src_dir, 'paths.py')
 
+# making a modudle (first make a path, secound create empty module, put value in that module from path.py file)
 spec  = importlib.util.spec_from_file_location("paths", paths_file)
 paths = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(paths)
 
+# reading data from config value 
 spec2  = importlib.util.spec_from_file_location("config", paths.CONFIG_PATH)
 config = importlib.util.module_from_spec(spec2)
 spec2.loader.exec_module(config)
@@ -20,7 +30,8 @@ spec2.loader.exec_module(config)
 class TechAgent:
 
     def __init__(self):
-        # ── Read all values ───────────────────
+
+
         # os.environ first → catches Streamlit secrets injected by main_ui.py
         # config fallback  → catches local .env values
         self.AZURE_ENDPOINT        = os.environ.get("AZURE_ENDPOINT")        or config.AZURE_ENDPOINT
@@ -30,16 +41,8 @@ class TechAgent:
         self.AGENT_NAME            = config.AGENT_NAME
         self.SYSTEM_PROMPT         = config.SYSTEM_PROMPT
 
-        print(f"API Key   : {bool(self.AZURE_API_KEY)}")
-        print(f"Endpoint  : {bool(self.AZURE_ENDPOINT)}")
-        print(f"Agent     : {self.AGENT_NAME}")
-
-        # WHY API key to decide mode?
-        # Local  → no API key in .env → DefaultAzureCredential + az login
-        # Cloud  → API key in secrets → OpenAI SDK with api-key header
-        # Removing API key from .env makes this reliable everywhere
+        #checking the envir if it local then everytime API-KEy is null because there is not api in env file
         if self.AZURE_API_KEY:
-            print("Mode: Cloud → OpenAI SDK with API key")
             self.is_cloud = True
             self._setup_cloud()
         else:
@@ -56,13 +59,6 @@ class TechAgent:
         We use OpenAI SDK pointed at Azure /openai/v1 endpoint.
         TechGuru agent already exists — we just reference it by name.
         """
-        from openai import OpenAI
-
-        # WHY replace endpoint?
-        # Our AZURE_ENDPOINT is the projects endpoint:
-        # https://resource.services.ai.azure.com/api/projects/project-name
-        # OpenAI SDK needs the /openai/v1 endpoint:
-        # https://resource.services.ai.azure.com/openai/v1
         base_url = self.AZURE_ENDPOINT.split("/api/projects/")[0] + "/openai/v1"
 
         self.openai_client = OpenAI(
@@ -70,12 +66,7 @@ class TechAgent:
             base_url=base_url
         )
 
-        # Conversation history stored in memory
-        # WHY list? OpenAI Responses API accepts
-        # full message history as input array
         self._history = []
-        print(f"✅ Cloud ready! Base URL: {base_url}")
-
 
     def _setup_local(self):
         """
@@ -84,12 +75,6 @@ class TechAgent:
         DefaultAzureCredential uses it automatically.
         Full SDK gives us agent management + Bing tool.
         """
-        from azure.ai.projects import AIProjectClient
-        from azure.ai.projects.models import (
-            BingGroundingTool,
-            BingGroundingSearchToolParameters,
-            BingGroundingSearchConfiguration
-        )
 
         self.client = AIProjectClient(
             endpoint=self.AZURE_ENDPOINT,
@@ -148,6 +133,7 @@ class TechAgent:
         print(f"✅ Local ready!")
 
 
+   # this function just checking if the enviroment is local or live
     def chat(self, user_message: str) -> str:
         if self.is_cloud:
             return self._chat_cloud(user_message)
@@ -162,10 +148,12 @@ class TechAgent:
         a conversation ID or thread.
         """
         try:
+            # so first we put  the message typed by user in history 
             self._history.append({
                 "role": "user",
                 "content": user_message
             })
+            # making a proper message by adding instruction first then user message
             messages = [
                 {"role": "system" , "content":self.SYSTEM_PROMPT}
             ] + self._history
