@@ -47,6 +47,9 @@ st.divider()
 #Session State
 
 if "agent" not in st.session_state:
+    st.error("Agent not initialized!")
+    st.code(str(st.session_state.get("start_error", "No error captured — agent never initialized")))
+    st.stop()
     with st.spinner("Running the agent, Please wait......"):
         try:
             st.session_state.agent = TechAgent()
@@ -90,7 +93,7 @@ if prompt := st.chat_input("tell me which technology you want to learn..."):
 
     if 'agent' not in st.session_state:
         st.error('TechGure is not initialized please refresh the page')
-        
+        st.code(st.session_state.start_error)  # ← ADD THIS LINE
         st.stop()
     #show user message immediately
     with st.chat_message("user"):
