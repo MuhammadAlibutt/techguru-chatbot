@@ -7,7 +7,7 @@ from azure.ai.projects.models import (
 import os
 import importlib.util
 from azure.identity import DefaultAzureCredential
-# from azure.core.credentials import AzureKeyCredential
+from azure.core.credentials import AzureKeyCredential
 # from src.conn.config import(
 #     AZURE_ENDPOINT,
 #     AGENT_NAME,
@@ -41,40 +41,31 @@ SYSTEM_PROMPT         = config.SYSTEM_PROMPT
 AZURE_API_KEY         = config.AZURE_API_KEY
 
 api_key = AZURE_API_KEY
-
-def get_credential(api_key):
-    if api_key:
-        class staticTokenCredential:
-            def __init__(self, key):
-                self.key = key
-
-            def get_token(self, *scopes, **kwargs):
-                from azure.core.credentials import AccessToken
-                import time
-
-                return AccessToken(self.key, int(time.time()) + 3600)
-        print("It return get_token now")
-        return staticTokenCredential(api_key)
-    else:
-        print("It returning default credentials")
-        return DefaultAzureCredential()
-
-print(f"✅ Services config loaded!")
-print(f"   Endpoint : {AZURE_ENDPOINT[:40]}...")
-print(f"   Model    : {MODEL_DEPLOYMENT_NAME}")
-print(f"   Agent    : {AGENT_NAME}")
-print(f"   API_KEY    : {AZURE_API_KEY}")
+is_cloud = os.environ.get("HOME") == "/home/adminuser"
+def get_credential():
+    if is_cloud and AZURE_API_KEY:
+        print("🔐 Using AzureKeyCredential")
+        return AzureKeyCredential(AZURE_API_KEY)
+    print("🔐 Using DefaultAzureCredential")
+    return DefaultAzureCredential()
 
 class TechAgent:
 
 
     def __init__(self):
         
-        self.client = AIProjectClient(
-            endpoint=AZURE_ENDPOINT,
-            credential=get_credential(api_key)
-        )
-        print("Connecting to Azure2")
+        if is_cloud:
+            self.client = AIProjectClient(
+                endpoint=AZURE_ENDPOINT,
+                credential=get_credential()
+                )
+            print("Connecting to Azure in Cloud")
+        else:
+            self.client = AIProjectClient(
+                endpoint=AZURE_ENDPOINT,
+                credential=DefaultAzureCredential()
+                )
+            print("Connecting to Azure in Locally")
 
 
 
@@ -102,30 +93,37 @@ class TechAgent:
         )
 
 
-        try:
-            versions = list(
-                self.client.agents.list_versions(agent_name=AGENT_NAME)
-            )
-            for v in versions:
-                self.client.agents.delete_version(
-                    agent_name=AGENT_NAME,
-                    agent_version=v.version
-                )
-                print(f"{v.version} : Deleted")
-        except Exception as e:
-            print(f"Deleting Exception: {e}")
-
-        print(f"DEBUG — model: '{MODEL_DEPLOYMENT_NAME}', agent: '{AGENT_NAME}'")
+       
         # Creating Agent
-        self.agent = self.client.agents.create_version(
-            agent_name=AGENT_NAME,
-            definition={
-                "kind": "prompt",
-                "model": MODEL_DEPLOYMENT_NAME,
-                "instructions":SYSTEM_PROMPT,
-                "tools":[bing_tool]
-            }
-        )
+        
+        if is_cloud:
+            print('Cloud Agent')
+            self.agent = self.client.agents.get(
+                agent_name='TechGuru'
+            )
+        else:
+            try:
+                versions = list(
+                    self.client.agents.list_versions(agent_name=AGENT_NAME)
+                    )
+                for v in versions:
+                    self.client.agents.delete_version(
+                        agent_name=AGENT_NAME,
+                        agent_version=v.version
+                        )
+                    print(f"{v.version} : Deleted")
+            except Exception as e:
+                print(f"Deleting Exception: {e}")
+                print(f"DEBUG — model: '{MODEL_DEPLOYMENT_NAME}', agent: '{AGENT_NAME}'")
+            self.agent = self.client.agents.create_version(
+                agent_name=AGENT_NAME,
+                definition={
+                    "kind": "prompt",
+                    "model": MODEL_DEPLOYMENT_NAME,
+                    "instructions":SYSTEM_PROMPT,
+                    "tools":[bing_tool]
+                    }
+                )
         print(f"System Prompt:    {SYSTEM_PROMPT}")
         print("Connecting to Azure23")
         print(f'Agent Created{self.agent.id}')
